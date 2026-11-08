@@ -65,11 +65,11 @@
   .pli.ouvert { grid-template-rows: 1fr; opacity:1; }
   .pli > div { overflow:hidden; min-height:0; }
   .veille { display:flex; align-items:center; gap:10px; }
-  .lune { display:flex; align-items:flex-end; }
-  /* Visuel de veille PROVISOIRE (étoile atténuée + anneau vide qui respire) : tout est dans visuelVeille() */
-  .veille-visuel { width:48px; height:48px; display:block; }
-  .veille-visuel .respire { transform-origin: 24px 24px; animation: respire 4s ease-in-out infinite; }
-  @keyframes respire { 0%,100% { transform: scale(.94); opacity:.55; } 50% { transform: scale(1.04); opacity:1; } }
+  /* Mascotte (axolotl en pixel art) : un emplacement de taille fixe, la toile y est déplacée par placerMascotte() */
+  .mascotte-place { flex:none; position:relative; }
+  .mascotte-place canvas { position:absolute; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; }
+  .veille .mascotte-place { margin:-6px 0 -4px -2px; }
+  .tete .mascotte-place { margin:-12px -4px -6px 2px; }
   .raccourci { color:var(--ter); font-size:10.5px; text-align:center; margin-top:8px; }
   body.popover #c { padding: 14px 16px 10px; }
   .h { color:var(--sec); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -122,14 +122,110 @@ function afficher(html) {
   if (html === dernierHTML) return; dernierHTML = html;
   const c = document.getElementById('c'), t = document.createElement('div'); t.innerHTML = html;
   morph(c, t);
+  placerMascotte();
   window.webkit?.messageHandlers?.hauteur?.postMessage(hauteurCible());
 }
-// ——— Visuel de veille PROVISOIRE : à remplacer ici seulement (le widget a son équivalent : VisuelVeille) ———
-function visuelVeille() {
-  return `<svg class="veille-visuel" viewBox="0 0 48 48" aria-hidden="true"><g class="respire">
-    <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(235,235,245,.22)" stroke-width="4"/>
-    <path d="M24 13.5 C25 19.6 28.4 23 34.5 24 C28.4 25 25 28.4 24 34.5 C23 28.4 19.6 25 13.5 24 C19.6 23 23 19.6 24 13.5 Z" fill="#E8663D" opacity=".55"/></g></svg>`;
+// ——— Mascotte : le petit axolotl doré en pixel art ———
+// Référence exacte (dessin, couleurs, animations) : design/mascotte-reference.html. Le widget a son équivalent en SwiftUI.
+// Une seule toile (canvas), créée une fois : à chaque mise à jour du panneau, elle est replacée dans l'emplacement
+// .mascotte-place du nouveau contenu, ce qui garde l'animation fluide quand on passe de la veille au travail.
+// B corps, W ventre, E trou (yeux, bouche), G branchies, K trait sombre, P joue rose ; « . » vide
+const CORPS = [
+ "........................",
+ "........................",
+ "......BBBBBBBBBBBB......",
+ ".....BBBBBBBBBBBBBB.....",
+ "....BBBBBBBBBBBBBBBB....",
+ "....BBBEBBBBBBBBEBBB....",
+ "..BBBBBEBBBBBBBBEBBBBB..",
+ "....BBBBBBEEEEBBBBBB....",
+ "....BBBWWWWWWWWWWBBB....",
+ "....BBBWWWWWWWWWWBBB....",
+ "....BBBBBBBBBBBBBBBB....",
+ "....BB.BB......BB.BB....",
+ "........................"];
+// Branchies, côté gauche en [x, y] (le côté droit est leur miroir) : deux poses qui alternent (ondulation) et une pose de sommeil
+const BRANCHIES = {
+  a: [[0,1],[1,1],[1,0],[2,2],[3,2],[3,1],[1,3],[2,3],[3,3],[4,3],[0,4],[1,4],[2,4]],
+  b: [[0,0],[1,0],[1,1],[2,1],[3,2],[2,2],[1,3],[2,3],[3,3],[4,3],[0,5],[1,4],[2,4]],
+  calme: [[1,2],[2,2],[2,3],[3,3],[4,3],[0,4],[1,4],[2,4],[3,4],[1,5],[2,5],[0,6]] };
+const COUL = { B:'#F2B544', S:'#D69A2E', W:'#FFF3CF', G:'#F08A5D', Gf:'#D9673B', K:'#3a2410', P:'#F59A8C' };
+const MASCOTTE_HAUT = 4, MASCOTTE_RANGS = 18;   // 4 rangées libres au-dessus pour les bulles ; 13 de sprite + l'ombre
+
+// Grille de la pose demandée (o.yeux, o.bouche, o.branchies)
+function grille(o) {
+  const g = CORPS.map(l => [...l]);
+  if (o.yeux === 'fermes') { g[5][7] = 'B'; g[5][16] = 'B'; }   // clignement : il ne reste qu'une fente
+  if (o.yeux === 'arc') {                                         // endormi : petit arc sombre + joues roses
+    [[5,7],[6,7],[5,16],[6,16]].forEach(([y, x]) => g[y][x] = 'B');
+    [[5,6],[6,7],[6,8],[5,9],[5,17],[6,16],[6,15],[5,14]].forEach(([y, x]) => g[y][x] = 'K');
+    [[7,6],[7,7],[7,16],[7,17]].forEach(([y, x]) => g[y][x] = 'P');
+  }
+  if (o.bouche === 'petite') { g[7][10] = 'B'; g[7][13] = 'B'; }
+  if (o.bouche === 'mini') { g[7][10] = 'B'; g[7][11] = 'B'; g[7][13] = 'B'; }
+  BRANCHIES[o.branchies].forEach(([x, y]) => { g[y][x] = 'G'; g[y][23 - x] = 'G'; });
+  return g;
 }
+// Dessine le sprite, coin haut-gauche (ox, oy), une case = px points. Ombre (S) : bord droit, bas et rangée 10.
+function dessinerSprite(ctx, ox, oy, px, o) {
+  const g = grille(o), H = g.length, L = g[0].length;
+  for (let y = 0; y < H; y++) {
+    let droite = -1; for (let x = 0; x < L; x++) if (g[y][x] === 'B') droite = x;
+    for (let x = 0; x < L; x++) {
+      const c = g[y][x]; if (c === '.' || c === 'E') continue;
+      let col = COUL[c] || COUL.B;
+      if (c === 'B' && (x === droite || (y + 1 < H && g[y + 1][x] === '.') || y === 10)) col = COUL.S;
+      if (c === 'G' && (x <= 1 || x >= 22)) col = COUL.Gf;           // franges extérieures plus foncées
+      const sq = o.respire && y >= 8 && y <= 10 ? 1 : 0;             // respiration : le ventre s'élargit
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(ox + x * px - sq), Math.round(oy + y * px), Math.ceil(px + sq * 2), Math.ceil(px));
+    }
+  }
+}
+// Trois bulles qui montent à côté de la tête (le panneau est toujours sombre : trait bleu clair)
+function bulles(ctx, ox, oy, px, t) {
+  [0, 1, 2].forEach(i => {
+    const ph = (t * 0.3 + i / 3) % 1, x = ox + (21 + Math.sin(ph * 6 + i) * 0.9) * px, y = oy + (2.5 - ph * 7) * px, r = px * (0.4 + ph * 0.5);
+    ctx.globalAlpha = (1 - ph) * 0.9; ctx.strokeStyle = '#bfe3ff'; ctx.lineWidth = Math.max(1, px * 0.32);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.45, y - r * 0.45, px * 0.3, px * 0.3); ctx.globalAlpha = 1;
+  });
+}
+// Pose à l'instant t (secondes) : « eveil », « dort1 » (endormi assis), « reveil » (dort, sursaut, puis éveil)
+function etatMascotte(mode, t) {
+  if (mode === 'eveil') return { branchies: Math.floor(t * 3) % 2 ? 'a' : 'b', yeux: (t % 3.6) > 3.45 ? 'fermes' : 'ouverts', bouche: 'normale', monte: Math.floor(t * 2.4) % 4 === 1 ? 1 : 0 };
+  if (mode === 'dort1') return { branchies: 'calme', yeux: 'arc', bouche: 'mini', respire: Math.floor(t * 0.8) % 2, bulles: true };
+  const k = t % 6;
+  if (k < 2.2) return etatMascotte('dort1', t);
+  if (k < 2.6) return { branchies: 'b', yeux: 'fermes', bouche: 'petite', monte: 1 };
+  return etatMascotte('eveil', t);
+}
+const mascotte = { toile: document.createElement('canvas'), mode: null, px: 0, reveil: -1 };
+// Emplacement à insérer dans le HTML du panneau (taille fixe : la hauteur du panneau ne dépend pas de la toile)
+const placeMascotte = (mode, px) => `<div class="mascotte-place" data-mode="${mode}" data-px="${px}" style="width:${24 * px}px;height:${MASCOTTE_RANGS * px}px" aria-hidden="true"></div>`;
+function placerMascotte() {
+  const place = document.querySelector('#c .mascotte-place'); if (!place) return;
+  const px = +place.dataset.px, mode = place.dataset.mode, T = mascotte.toile;
+  if (px !== mascotte.px) { const dpr = window.devicePixelRatio || 2; mascotte.px = px; T.width = 24 * px * dpr; T.height = MASCOTTE_RANGS * px * dpr; }
+  if (T.parentNode !== place) place.appendChild(T);
+  if (mode !== mascotte.mode) {
+    if (mascotte.mode === 'dort1' && mode === 'eveil') mascotte.reveil = performance.now() / 1000;   // il se réveille en sursaut
+    mascotte.mode = mode; dessinerMascotte();
+  }
+}
+function dessinerMascotte() {
+  const T = mascotte.toile; if (!T.isConnected || document.hidden || !mascotte.px) return;
+  const ctx = T.getContext('2d'), dpr = T.width / (24 * mascotte.px), px = mascotte.px, t = performance.now() / 1000;
+  // réveil : on rejoue la fin de la séquence « reveil » (un instant endormi, sursaut, puis éveillé) sur 1,2 s
+  const k = t - mascotte.reveil;
+  const e = mascotte.mode === 'eveil' && k < 1.2 ? etatMascotte('reveil', 1.4 + k) : etatMascotte(mascotte.mode, t);
+  const oy0 = MASCOTTE_HAUT * px, oy = oy0 - (e.monte || 0) * px;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, 24 * px, MASCOTTE_RANGS * px);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(5 * px, oy0 + 12.4 * px, 14 * px, 0.7 * px);   // ombre au sol
+  dessinerSprite(ctx, 0, oy, px, e);
+  if (e.bulles) bulles(ctx, 0, oy, px, t);
+}
+setInterval(dessinerMascotte, 100);   // ~10 images par seconde
 const COINS = ['en haut à droite','en haut à gauche','en bas à droite','en bas à gauche'];
 function maj(d, r) {
   const now = d.now, S = Object.values(d.sessions||{}).sort((a,b)=>b.maj-a.maj), s = S[0];
@@ -138,11 +234,11 @@ function maj(d, r) {
   const veille = !trav && !d.taches.some(t => !t.fin) && !actifs.length && (!s || now - s.maj > 900);
   const etat = !s ? 'Au repos' : trav ? 'Travaille' : s.statut==='attend' ? 'Attend ta réponse' : 'Au repos';
   const col = trav ? 'var(--bleu)' : (s && s.statut==='attend') ? 'var(--vert)' : 'var(--gris)';
-  let h = veille ? `<div class="veille"><div class="lune">${visuelVeille()}</div><div style="flex:1"><div class="titre">Claude en veille </div>
+  let h = veille ? `<div class="veille">${placeMascotte('dort1', 3)}<div style="flex:1"><div class="titre">Claude en veille </div>
       <div class="dem" style="margin-top:2px">${s ? 'Dernière activité il y a ' + duree(now - s.maj) : 'Aucune session Claude ouverte'}</div></div>
       ${d.eveil ? `<div class="eveil on" title="Le Mac reste éveillé">💡</div>` : ''}</div>` : `<div class="tete"><div class="pt ${trav?'pulse':''}" style="background:${col};box-shadow:0 0 8px ${col}"></div>
     <div class="titre">Claude · ${etat}</div><div class="chrono">${trav ? duree(now-(s.depuis||s.maj)) : ''}</div>
-    ${d.eveil ? `<div class="eveil on" title="Le Mac reste éveillé">💡</div>` : ''}</div>`;
+    ${d.eveil ? `<div class="eveil on" title="Le Mac reste éveillé">💡</div>` : ''}${placeMascotte('eveil', 2)}</div>`;
   if (veille && MODE !== 'popover') { afficher(h); return; }
   if (MODE === 'popover' && r && r.compact && r.fini) {
     afficher(`<div class="bulle"><div class="ok">✓</div><div class="txt"><b>${esc(r.titreBulle || 'Tâche terminée')}</b><span>${esc(r.fini.replace(/ : terminé$/, ''))}</span></div>

@@ -30,7 +30,7 @@ struct Fournisseur: TimelineProvider {
         journal.log("getTimeline demandée")
         let d = lire()
         if Etat(d).veille {
-            // Veille : animation douce (respiration) — une image par seconde, séquence rejouée en boucle
+            // Veille : mascotte endormie (respiration + bulles) — une image par seconde, séquence rejouée en boucle
             let t0 = Date()
             // macOS refuse une séquence trop lourde (> ~10 Mo) : moins d'images d'avance pour les grands formats
             let n = c.family == .systemSmall ? 96 : c.family == .systemMedium ? 40 : 32
@@ -118,7 +118,7 @@ struct Vue: View {
     var body: some View {
         let et = Etat(e.d, instant: e.date)
         Group {
-            if et.veille { Veille(et: et, phase: e.phase) }
+            if et.veille { Veille(et: et, phase: e.phase, famille: famille) }
             else {
                 switch famille {
                 case .systemSmall: Petit(et: et)
@@ -477,80 +477,186 @@ struct Grand: View {
     }
 }
 
-// ——— Visuel de veille PROVISOIRE (étoile atténuée + anneau vide qui respire) ———
-// Tout le dessin de veille est ici : pour changer de visuel, il suffit de remplacer cette vue
-// (et la fonction visuelVeille() du panneau, Resources/panneau.html).
-let phasesVeille = 8   // une image par seconde ; respiration sur 8 s
-struct VisuelVeille: View {
-    var taille: CGFloat = 54; var phase = 0
-    var body: some View {
-        let x = (1 - cos(Double(phase % phasesVeille) / Double(phasesVeille) * 2 * .pi)) / 2   // 0 → 1 → 0
-        ZStack {
-            Circle().stroke(encre3.opacity(0.5 + 0.5 * x), lineWidth: taille * 0.08)
-            Image(systemName: "sparkle").font(.system(size: taille * 0.42, weight: .semibold))
-                .foregroundStyle(corail.opacity(0.35 + 0.3 * x))
+// ——— Mascotte endormie : le petit axolotl doré en pixel art ———
+// Référence exacte du dessin, des couleurs et des animations : design/mascotte-reference.html (mode « dort1 »).
+// Le sprite fait 24 × 13 cases. Chaque couleur est dessinée d'un seul tenant (une seule Path par couleur),
+// comme un sprite de jeu vidéo ; les bulles sont des vues à part pour pouvoir glisser d'une image à l'autre.
+// Le panneau de la barre des menus a son équivalent en JavaScript (Resources/panneau.html).
+let phasesVeille = 8   // une image par seconde ; l'animation boucle sur 8 s (2 respirations, 2 tours de bulles)
+
+enum SpriteMascotte {
+    // B corps, W ventre, E trou (yeux, bouche) ; « . » vide
+    static let corps = [
+        "........................",
+        "........................",
+        "......BBBBBBBBBBBB......",
+        ".....BBBBBBBBBBBBBB.....",
+        "....BBBBBBBBBBBBBBBB....",
+        "....BBBEBBBBBBBBEBBB....",
+        "..BBBBBEBBBBBBBBEBBBBB..",
+        "....BBBBBBEEEEBBBBBB....",
+        "....BBBWWWWWWWWWWBBB....",
+        "....BBBWWWWWWWWWWBBB....",
+        "....BBBBBBBBBBBBBBBB....",
+        "....BB.BB......BB.BB....",
+        "........................"]
+    // Branchies détendues du sommeil, côté gauche en (x, y) ; le côté droit est leur miroir
+    static let branchiesCalmes = [(1, 2), (2, 2), (2, 3), (3, 3), (4, 3), (0, 4), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (0, 6)]
+
+    // Grille de la pose endormie : yeux fermés en petit arc sombre (K), joues roses (P), bouche « mini », branchies (G)
+    static let grille: [[Character]] = {
+        var g = corps.map { Array($0) }
+        for (y, x) in [(5, 7), (6, 7), (5, 16), (6, 16)] { g[y][x] = "B" }                       // on referme les yeux
+        for (y, x) in [(5, 6), (6, 7), (6, 8), (5, 9), (5, 17), (6, 16), (6, 15), (5, 14)] { g[y][x] = "K" }
+        for (y, x) in [(7, 6), (7, 7), (7, 16), (7, 17)] { g[y][x] = "P" }
+        for x in [10, 11, 13] { g[7][x] = "B" }                                                  // bouche réduite à un point
+        for (x, y) in branchiesCalmes { g[y][x] = "G"; g[y][23 - x] = "G" }
+        return g
+    }()
+
+    // Un calque = une couleur et toutes ses cases. Ombre (S) : bord droit, bas du corps et rangée 10 ;
+    // franges extérieures des branchies (Gf) plus foncées.
+    static let calques: [(couleur: Color, cases: [(Int, Int)])] = {
+        let teintes: [String: UInt32] = ["B": 0xF2B544, "S": 0xD69A2E, "W": 0xFFF3CF, "G": 0xF08A5D, "Gf": 0xD9673B, "K": 0x3A2410, "P": 0xF59A8C]
+        var cases: [String: [(Int, Int)]] = [:]
+        let g = grille, h = g.count
+        for y in 0..<h {
+            let droite = g[y].lastIndex(of: "B") ?? -1
+            for (x, c) in g[y].enumerated() where c != "." && c != "E" {
+                var cle = String(c)
+                if c == "B" && (x == droite || (y + 1 < h && g[y + 1][x] == ".") || y == 10) { cle = "S" }
+                if c == "G" && (x <= 1 || x >= 22) { cle = "Gf" }
+                cases[cle, default: []].append((x, y))
+            }
         }
-        .frame(width: taille, height: taille)
-        .scaleEffect(0.94 + 0.08 * x)
-        .animation(.easeInOut(duration: 1.0), value: phase)
+        return ["B", "S", "W", "G", "Gf", "K", "P"].compactMap { cle in
+            guard let l = cases[cle], let t = teintes[cle] else { return nil }
+            return (Color(red: Double(t >> 16 & 0xFF) / 255, green: Double(t >> 8 & 0xFF) / 255, blue: Double(t & 0xFF) / 255), l)
+        }
+    }()
+    // Dernière case pleine de chaque rangée (pour la respiration)
+    static let derniere: [Int] = grille.map { $0.lastIndex { $0 != "." } ?? -1 }
+}
+
+// Les cases d'une couleur, en une seule Path. Respiration : le ventre (rangées 8 à 10) s'élargit d'1 point de chaque côté.
+struct CalquePixels: Shape {
+    let cases: [(Int, Int)]; let respire: Bool
+    func path(in r: CGRect) -> Path {
+        let px = r.width / 24
+        var p = Path()
+        for (x, y) in cases {
+            var c = CGRect(x: CGFloat(x) * px, y: CGFloat(y) * px, width: px, height: px)
+            if respire && (8...10).contains(y) {
+                c.origin.x -= 1
+                if x == SpriteMascotte.derniere[y] { c.size.width += 2 }
+            }
+            p.addRect(c)
+        }
+        return p
+    }
+}
+
+// Trois bulles qui montent à côté de la tête, grossissent et s'effacent (un tour toutes les 4 s, décalées d'un tiers).
+// Entre deux images (1 s), la montée glisse en continu ; une bulle qui recommence en bas est une nouvelle vue (fondu).
+struct BullesMascotte: View {
+    let px: CGFloat; let phase: Int
+    @Environment(\.colorScheme) var mode
+    struct Bulle { let id: String; let x: CGFloat; let y: CGFloat; let r: CGFloat; let alpha: Double }
+    var bulles: [Bulle] {
+        (0..<3).map { i in
+            let u = Double(phase) / 4 + Double(i) / 3, ph = u - u.rounded(.down)
+            return Bulle(id: "\(i)-\(Int(u))",
+                         x: (21 + sin(ph * 6 + Double(i)) * 0.9) * px, y: (2.5 - ph * 7) * px,
+                         r: px * (0.4 + ph * 0.5), alpha: (1 - ph) * 0.9)
+        }
+    }
+    var body: some View {
+        let trait = mode == .dark ? Color(red: 0.75, green: 0.89, blue: 1.0) : Color(red: 0.50, green: 0.72, blue: 0.90)
+        ZStack(alignment: .topLeading) {
+            ForEach(bulles, id: \.id) { b in
+                ZStack(alignment: .topLeading) {
+                    Circle().stroke(trait, lineWidth: max(1, px * 0.32))
+                    Rectangle().fill(.white).frame(width: px * 0.3, height: px * 0.3).offset(x: b.r * 0.55, y: b.r * 0.55)   // reflet
+                }
+                .frame(width: 2 * b.r, height: 2 * b.r, alignment: .topLeading)
+                .opacity(b.alpha)
+                .offset(x: b.x - b.r, y: b.y - b.r)
+                .transition(.opacity)
+            }
+        }
+        .frame(width: 24 * px, height: 13 * px, alignment: .topLeading)
+        .animation(.linear(duration: 1), value: phase)
+    }
+}
+
+// L'axolotl endormi, assis : la vue occupe exactement la grille (24 × 13 cases de px points) ;
+// les bulles débordent au-dessus, dans l'espace libre.
+struct MascotteEndormie: View {
+    var px: CGFloat = 5; var phase = 0
+    @Environment(\.colorScheme) var mode
+    var body: some View {
+        let respire = phase % 4 >= 2   // 2 s inspiration, 2 s expiration
+        ZStack(alignment: .topLeading) {
+            // petite ombre au sol
+            Rectangle().fill(Color.black.opacity(mode == .dark ? 0.35 : 0.08))
+                .frame(width: 14 * px, height: 0.7 * px).offset(x: 5 * px, y: 12.4 * px)
+            ForEach(Array(SpriteMascotte.calques.enumerated()), id: \.offset) { _, calque in
+                CalquePixels(cases: calque.cases, respire: respire).fill(calque.couleur)
+            }
+            BullesMascotte(px: px, phase: phase)
+        }
+        .frame(width: 24 * px, height: 13 * px, alignment: .topLeading)
+        .accessibilityLabel("Mascotte endormie")
     }
 }
 
 // ——— VEILLE : Claude n'est pas connecté ———
+// La famille est passée en paramètre (et non lue dans l'environnement) pour pouvoir rendre la vue hors widget.
 struct Veille: View {
-    let et: Etat; let phase: Int
-    @Environment(\.widgetFamily) var famille
-    var lune: some View {
-        VisuelVeille(taille: famille == .systemSmall ? 62 : 52, phase: phase)
+    let et: Etat; let phase: Int; let famille: WidgetFamily
+    var inactif: some View {
+        Group {
+            if let t = et.derniere {
+                HStack(spacing: 4) { Text("Inactif depuis").foregroundStyle(encre3); Text(date(t), style: .relative).foregroundStyle(encre2) }
+            } else { Text("Aucune session ouverte").foregroundStyle(encre2) }
+        }
+        .font(.system(size: famille == .systemLarge ? 11.5 : 11, weight: .medium)).lineLimit(1)
     }
     var body: some View {
-        Group {
-            if famille == .systemLarge {
-                VStack(spacing: 6) {
-                    HStack { Spacer(); Boutons(et: et) }
-                    VisuelVeille(taille: 96, phase: phase)
-                    Text("Claude en veille").font(.system(size: 17, weight: .bold))
-                    if let t = et.derniere {
-                        HStack(spacing: 4) { Text("Inactif depuis").foregroundStyle(encre3); Text(date(t), style: .relative).foregroundStyle(encre2) }
-                            .font(.system(size: 11.5, weight: .medium)).lineLimit(1)
-                    } else { Text("Aucune session ouverte").font(.system(size: 11.5)).foregroundStyle(encre2) }
-                    Spacer(minLength: 4)
-                    if !et.hist.isEmpty {
-                        Carte {
-                            Titre(t: "Dernières actions")
-                            ForEach(Array(et.hist.prefix(3).enumerated()), id: \.offset) { _, h in LigneHist(h: h) }
-                        }
+        switch famille {
+        case .systemSmall:
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                MascotteEndormie(px: 5, phase: phase).padding(.top, 14)
+                Spacer(minLength: 0)
+                Text("En veille").font(.system(size: 12, weight: .semibold)).foregroundStyle(encre2)
+            }
+        case .systemLarge:
+            VStack(spacing: 6) {
+                MascotteEndormie(px: 8, phase: phase).padding(.top, 34)
+                Text("Claude en veille").font(.system(size: 17, weight: .bold)).padding(.top, 6)
+                inactif
+                Spacer(minLength: 4)
+                if !et.hist.isEmpty {
+                    Carte {
+                        Titre(t: "Dernières actions")
+                        ForEach(Array(et.hist.prefix(3).enumerated()), id: \.offset) { _, h in LigneHist(h: h) }
                     }
-                }
-            } else if famille == .systemSmall {
-                VStack(spacing: 8) { Spacer(minLength: 0); lune; Text("En veille").font(.system(size: 12, weight: .semibold)).foregroundStyle(encre2); Spacer(minLength: 0) }
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    if famille == .systemMedium { Spacer(minLength: 0) }
-                    HStack(spacing: 14) {
-                        lune
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Claude en veille").font(.system(size: 15, weight: .bold))
-                            if let t = et.derniere {
-                                Text("Inactif depuis").font(.system(size: 10.5)).foregroundStyle(encre3)
-                                Text(date(t), style: .relative).font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(encre2).lineLimit(1)
-                            } else { Text("Aucune session ouverte").font(.system(size: 11)).foregroundStyle(encre2) }
-                        }
-                        Spacer(minLength: 4)
-                        Boutons(et: et)
-                    }
-                    if famille == .systemMedium, let h = et.hist.first {
-                        LigneHist(h: h).padding(.horizontal, 2)
-                    }
-                    if famille == .systemLarge, !et.hist.isEmpty {
-                        Carte {
-                            Titre(t: "Dernières actions")
-                            ForEach(Array(et.hist.prefix(4).enumerated()), id: \.offset) { _, h in LigneHist(h: h) }
-                        }
-                    }
-                    Spacer(minLength: 0)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .overlay(alignment: .topTrailing) { Boutons(et: et) }
+        default:
+            HStack(spacing: 14) {
+                MascotteEndormie(px: 5, phase: phase).padding(.top, 10)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Claude en veille").font(.system(size: 15, weight: .bold))
+                    inactif
+                    if let h = et.hist.first { LigneHist(h: h).padding(.top, 8) }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .overlay(alignment: .topTrailing) { Boutons(et: et) }
         }
     }
 }

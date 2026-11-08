@@ -11,7 +11,7 @@ EyeOn est une petite app macOS gratuite et open source. Pendant que Claude Code 
 ## Ce que fait EyeOn
 
 - **Barre des menus** : l'icône ✦ ouvre un panneau avec la demande en cours, l'action en cours, les barres de progression, les agents, l'historique récent, le résumé de la journée et la jauge de mémoire (contexte) de Claude.
-- **Widget de Bureau** (petit, moyen, grand) : des anneaux de progression emboîtés, façon anneaux Activité — un anneau par tâche, en dégradé de bleus, qui passe au vert quand la tâche est finie.
+- **Widget de Bureau** (petit, moyen, grand) : des anneaux de progression emboîtés, façon anneaux Activité — un anneau par tâche, en dégradé de bleus, qui passe au vert quand la tâche est finie. En veille, la mascotte d'EyeOn (un petit axolotl doré en pixel art) dort en faisant des bulles.
 - **Alertes intelligentes** : notification quand une longue tâche est terminée ou quand Claude t'attend. EyeOn attend que ton micro soit libre (dictée), reste discret pendant une vidéo ou en mode Ne pas déranger, et ne dit rien si tu es déjà dans le terminal de Claude.
 - **Alerte iPhone (facultatif)** : si tu n'es pas devant ton Mac, un iMessage t'est envoyé (à toi-même).
 - **Ampoule** : garde l'écran allumé tant que Claude travaille.
@@ -82,7 +82,7 @@ Seuls les outils en ligne de commande d'Apple sont nécessaires (`xcode-select -
 
 Organisation : `Sources/App` (app de la barre des menus, assistant, réglages), `Sources/Widget` (widget WidgetKit),
 `Sources/Hook` (`eyeon-hook`, appelé par Claude Code), `Sources/Progres` (`eyeon-progres`), `Sources/Commun` (code partagé),
-`Resources/panneau.html` (panneau). Pour les tests, la variable `EYEON_DATA` redirige le dossier de données
+`Resources/panneau.html` (panneau), `design/` (référence de la mascotte ; `design/outils/apercus.sh` rend des aperçus PNG du widget et du panneau sans lancer l'app). Pour les tests, la variable `EYEON_DATA` redirige le dossier de données
 et `EyeOn --connecter <fichier>` / `--deconnecter <fichier>` agit sur un fichier de réglages précis.
 
 ## Licence

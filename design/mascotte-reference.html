@@ -1,0 +1,141 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>EyeOn — la mascotte</title>
+<style>
+:root{font-family:-apple-system,"SF Pro Text",system-ui;color:#1d1d1f;-webkit-font-smoothing:antialiased}
+body{margin:0;padding:42px 50px 60px;background:#f5f5f7}
+h1{font:700 32px -apple-system,"SF Pro Display",system-ui;letter-spacing:-.6px;margin:0 0 6px}
+p.sous{color:#6e6e73;font-size:15px;margin:0 0 22px;max-width:900px;line-height:1.55}
+h3{font:600 12px -apple-system,system-ui;letter-spacing:.7px;text-transform:uppercase;color:#86868b;margin:32px 0 14px}
+.heros{display:flex;gap:18px;flex-wrap:wrap}
+.case{background:#fff;border-radius:22px;padding:12px 12px 10px;box-shadow:0 1px 3px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.05);text-align:center}
+.case.s{background:#1f1f22}
+.case span{display:block;font:600 11px -apple-system,system-ui;color:#86868b;letter-spacing:.4px;text-transform:uppercase;margin-top:6px}
+.scene{border-radius:28px;padding:34px;display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.scene.clair{background:linear-gradient(135deg,#a9c3ec 0%,#cdbfe6 50%,#f0d3cb 100%)}
+.scene.sombre{background:linear-gradient(135deg,#141b33 0%,#241c3d 50%,#33202b 100%)}
+canvas{display:block;image-rendering:pixelated}
+</style></head><body>
+<h1>La mascotte d'EyeOn</h1>
+<p class="sous">Le n°8, transformé en petit axolotl doré en bloc : branchies frangées qui ondulent, ventre clair, yeux percés, petit sourire. Éveillé quand Claude travaille ; endormi en veille, branchies retombées, avec des bulles d'eau qui montent.</p>
+<div class="heros">
+  <div class="case"><canvas id="h1"></canvas><span>Éveillé</span></div>
+  <div class="case"><canvas id="h2"></canvas><span>Endormi</span></div>
+  <div class="case"><canvas id="h3"></canvas><span>Réveil (en boucle)</span></div>
+  <div class="case s"><canvas id="h4"></canvas><span>Éveillé</span></div>
+  <div class="case s"><canvas id="h5"></canvas><span>Endormi</span></div>
+</div>
+<h3>Endormi : trois propositions</h3>
+<div class="heros">
+  <div class="case"><canvas id="d1"></canvas><span>1 · Assis, paisible</span></div>
+  <div class="case"><canvas id="d2"></canvas><span>2 · Couché à plat</span></div>
+  <div class="case"><canvas id="d3"></canvas><span>3 · Bulle au museau</span></div>
+  <div class="case s"><canvas id="d4"></canvas><span>1 · Assis, paisible</span></div>
+  <div class="case s"><canvas id="d5"></canvas><span>2 · Couché à plat</span></div>
+  <div class="case s"><canvas id="d6"></canvas><span>3 · Bulle au museau</span></div>
+</div>
+<h3>En veille sur le Bureau · mode clair (proposition 1)</h3><div class="scene clair"><canvas id="c-p"></canvas><canvas id="c-m"></canvas><canvas id="c-g"></canvas></div>
+<h3>En veille sur le Bureau · mode sombre</h3><div class="scene sombre"><canvas id="s-p"></canvas><canvas id="s-m"></canvas><canvas id="s-g"></canvas></div>
+<script>
+// ——— Le sprite (24 × 13). B corps, W ventre, G branchies, E trou (yeux, bouche), L patte ———
+const CORPS = [
+ "........................",
+ "........................",
+ "......BBBBBBBBBBBB......",
+ ".....BBBBBBBBBBBBBB.....",
+ "....BBBBBBBBBBBBBBBB....",
+ "....BBBEBBBBBBBBEBBB....",
+ "..BBBBBEBBBBBBBBEBBBBB..",
+ "....BBBBBBEEEEBBBBBB....",
+ "....BBBWWWWWWWWWWBBB....",
+ "....BBBWWWWWWWWWWBBB....",
+ "....BBBBBBBBBBBBBBBB....",
+ "....BB.BB......BB.BB....",
+ "........................"];
+// branchies : 3 franges de chaque côté ; deux poses (ondulation) + une pose retombée (sommeil)
+const BRANCHIES = {
+  a: [[0,1],[1,1],[1,0],[2,2],[3,2],[3,1],[1,3],[2,3],[3,3],[4,3],[0,4],[1,4],[2,4]],
+  b: [[0,0],[1,0],[1,1],[2,1],[3,2],[2,2],[1,3],[2,3],[3,3],[4,3],[0,5],[1,4],[2,4]],
+  dort: [[4,3],[3,3],[3,4],[2,4],[2,5],[1,5],[1,6],[4,4],[3,5],[2,6],[4,5],[3,6],[2,7]],
+  calme: [[1,2],[2,2],[2,3],[3,3],[4,3],[0,4],[1,4],[2,4],[3,4],[1,5],[2,5],[0,6]] };   // franges détendues, plus basses
+const COUL = { B:'#F2B544', S:'#D69A2E', W:'#FFF3CF', G:'#F08A5D', Gf:'#D9673B', L:'#D69A2E', K:'#3a2410', P:'#F59A8C' };
+
+function grille(o){
+  const g = CORPS.map(l => [...l]);
+  // yeux : ouverts = trou de 2 de haut ; fermés = seule la rangée du bas reste percée (fente)
+  if (o.yeux === 'fermes'){ g[5][7] = 'B'; g[5][16] = 'B'; }
+  if (o.yeux === 'arc'){   // yeux fermés en petit arc ‿ sombre + joues roses
+    [[5,7],[6,7],[5,16],[6,16]].forEach(([y, x]) => g[y][x] = 'B');
+    [[5,6],[6,7],[6,8],[5,9]].forEach(([y, x]) => g[y][x] = 'K'); [[5,17],[6,16],[6,15],[5,14]].forEach(([y, x]) => g[y][x] = 'K');
+    g[7][6] = 'P'; g[7][7] = 'P'; g[7][16] = 'P'; g[7][17] = 'P'; }
+  if (o.couche){ g[11] = [...'........................']; g[10] = [...'....BBBBBBBBBBBBBBBB....']; }
+  if (o.bouche === 'petite'){ g[7][10] = 'B'; g[7][13] = 'B'; }
+  if (o.bouche === 'mini'){ g[7][10] = 'B'; g[7][13] = 'B'; g[7][11] = 'B'; }
+  // branchies (miroir gauche/droite)
+  BRANCHIES[o.branchies].forEach(([x, y]) => { g[y][x] = 'G'; g[y][23 - x] = 'G'; });
+  return g;
+}
+function dessinerSprite(ctx, ox, oy, px, o){
+  const g = grille(o), H = g.length, L = g[0].length;
+  // ombre : dernier pixel de corps de chaque ligne + bas du corps
+  for (let y = 0; y < H; y++){
+    let droite = -1; for (let x = 0; x < L; x++) if (g[y][x] === 'B') droite = x;
+    for (let x = 0; x < L; x++){
+      const c = g[y][x]; if (c === '.' || c === 'E') continue;
+      let col = COUL[c] || COUL.B;
+      if (c === 'B' && (x === droite || (y + 1 < H && g[y + 1][x] === '.' ) || y === 10)) col = COUL.S;
+      if (c === 'G' && (x > 11 ? x === 23 - 0 : false)) col = COUL.Gf;
+      if (c === 'G' && ((x < 12 && x <= 1) || (x >= 12 && x >= 22))) col = COUL.Gf;
+      const sq = o.respire && y >= 8 && y <= 10 ? 1 : 0;
+      ctx.fillStyle = col; ctx.fillRect(Math.round(ox + x * px - sq), Math.round(oy + y * px), Math.ceil(px + sq * 2), Math.ceil(px));
+    }
+  }
+}
+function bulleNez(ctx, ox, oy, px, t, sombre){ const r = px * (0.7 + 1.3 * (0.5 + 0.5 * Math.sin(t * 1.4))), x = ox + 12 * px + r * 0.6, y = oy + 7.6 * px + r * 0.4;
+  ctx.strokeStyle = sombre ? '#bfe3ff' : '#7fb8e6'; ctx.lineWidth = Math.max(1, px * 0.3); ctx.globalAlpha = .95; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.45, y - r * 0.5, px * 0.35, px * 0.35); ctx.globalAlpha = 1; }
+function bulles(ctx, ox, oy, px, t, sombre){
+  [0, 1, 2].forEach(i => { const ph = (t * 0.3 + i / 3) % 1, x = ox + (21 + Math.sin(ph * 6 + i) * 0.9) * px, y = oy + (2.5 - ph * 7) * px, r = px * (0.4 + ph * 0.5);
+    ctx.globalAlpha = (1 - ph) * 0.9; ctx.strokeStyle = sombre ? '#bfe3ff' : '#7fb8e6'; ctx.lineWidth = Math.max(1, px * 0.32);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(x - r * 0.45, y - r * 0.45, px * 0.3, px * 0.3); ctx.globalAlpha = 1; });
+}
+// état à l'instant t
+function etat(mode, t){
+  if (mode === 'eveil') return { branchies: Math.floor(t * 3) % 2 ? 'a' : 'b', yeux: (t % 3.6) > 3.45 ? 'fermes' : 'ouverts', bouche: 'normale', monte: Math.floor(t * 2.4) % 4 === 1 ? 1 : 0 };
+  if (mode === 'dort' || mode === 'dort1') return { branchies: 'calme', yeux: 'arc', bouche: 'mini', respire: Math.floor(t * 0.8) % 2, bulles: true };
+  if (mode === 'dort2') return { branchies: 'calme', yeux: 'arc', bouche: 'mini', couche: true, descend: 1, respire: Math.floor(t * 0.8) % 2, bulles: true };
+  if (mode === 'dort3') return { branchies: 'calme', yeux: 'arc', bouche: 'mini', respire: Math.floor(t * 0.8) % 2, bulleNez: true };
+  const k = t % 6;   // réveil en boucle
+  if (k < 2.2) return etat('dort', t);
+  if (k < 2.6) return { branchies: 'b', yeux: 'fermes', bouche: 'petite', monte: 1 };
+  return etat('eveil', t);
+}
+
+const DPR = 2;
+function toile(id, w, h){ const c = document.getElementById(id); c.width = w * DPR; c.height = h * DPR; c.style.width = w + 'px'; c.style.height = h + 'px'; const x = c.getContext('2d'); x.scale(DPR, DPR); return {x, w, h}; }
+function sprite(x, cx, cy, px, mode, t, sombre){
+  const e = etat(mode, t), L = 24 * px, H = 13 * px, ox = cx - L / 2, oy = cy - H / 2 - (e.monte || 0) * px + (e.descend || 0) * px;
+  x.fillStyle = sombre ? 'rgba(0,0,0,.35)' : 'rgba(0,0,0,.08)'; x.fillRect(cx - 7 * px, cy + H / 2 - px * 0.6, 14 * px, px * 0.7);
+  dessinerSprite(x, ox, oy, px, e); if (e.bulles) bulles(x, ox, oy, px, t, sombre); if (e.bulleNez) bulleNez(x, ox, oy, px, t, sombre); }
+
+function fondWidget(x, w, h, sombre){ const r = 22;
+  x.save(); x.shadowColor = sombre ? 'rgba(0,0,0,.45)' : 'rgba(30,40,80,.18)'; x.shadowBlur = 28; x.shadowOffsetY = 10; x.beginPath(); x.roundRect(0, 0, w, h, r); x.fillStyle = sombre ? '#1c1c1e' : '#fff'; x.fill(); x.restore();
+  x.save(); x.beginPath(); x.roundRect(0, 0, w, h, r); x.clip(); const g = x.createLinearGradient(0, 0, 0, h); if (sombre){ g.addColorStop(0, '#2c2c2f'); g.addColorStop(1, '#1b1b1d'); } else { g.addColorStop(0, '#fff'); g.addColorStop(1, '#f6f6f8'); } x.fillStyle = g; x.fillRect(0, 0, w, h); x.restore();
+  x.save(); x.beginPath(); x.roundRect(0.5, 0.5, w - 1, h - 1, r - 0.5); x.strokeStyle = sombre ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.04)'; x.stroke(); x.restore(); }
+const ecrire = (x, s, X, Y, taille, poids, coul, align = 'left') => { x.font = `${poids} ${taille}px -apple-system,"SF Pro Text",system-ui`; x.fillStyle = coul; x.textAlign = align; x.fillText(s, X, Y); };
+const TC = s => ({ P: s ? '#f5f5f7' : '#1d1d1f', S: s ? 'rgba(235,235,245,.62)' : 'rgba(60,60,67,.62)', Q: s ? 'rgba(235,235,245,.34)' : 'rgba(60,60,67,.34)', V: s ? '#32d74b' : '#34c759' });
+function petit(T, t, s){ const {x, w, h} = T; x.clearRect(0, 0, w, h); fondWidget(x, w, h, s); const c = TC(s); sprite(x, w / 2, h * 0.47, 5, 'dort', t, s); ecrire(x, 'En veille', w / 2, h - 18, 13, 600, c.S, 'center'); }
+function moyen(T, t, s){ const {x, w, h} = T; x.clearRect(0, 0, w, h); fondWidget(x, w, h, s); const c = TC(s); sprite(x, 82, h / 2 + 4, 5, 'dort', t, s);
+  ecrire(x, 'Claude en veille', 162, 62, 16, 700, c.P); ecrire(x, 'Inactif depuis 1 h 12', 162, 83, 12.5, 500, c.S);
+  x.fillStyle = c.V; x.beginPath(); x.arc(165.5, 111, 2.6, 0, Math.PI * 2); x.fill(); ecrire(x, 'Relevé des prix terminé', 174, 115, 12, 500, c.S); ecrire(x, '10:42', 174, 132, 11, 500, c.Q); }
+function grand(T, t, s){ const {x, w, h} = T; x.clearRect(0, 0, w, h); fondWidget(x, w, h, s); const c = TC(s); sprite(x, w / 2, 118, 9, 'dort', t, s);
+  ecrire(x, 'Claude en veille', w / 2, 222, 18, 700, c.P, 'center'); ecrire(x, 'Inactif depuis 1 h 12', w / 2, 243, 12.5, 500, c.S, 'center');
+  x.save(); x.beginPath(); x.roundRect(16, 262, w - 32, 64, 14); x.fillStyle = s ? 'rgba(255,255,255,.055)' : 'rgba(0,0,0,.028)'; x.fill(); x.restore();
+  ecrire(x, 'DERNIÈRES ACTIONS', 30, 282, 9.5, 600, c.Q);
+  [['Relevé des prix terminé', '10:42'], ['Widget mis à jour', '10:31']].forEach(([a, hh], i) => { x.fillStyle = c.V; x.beginPath(); x.arc(33, 297.5 + i * 18, 2.6, 0, Math.PI * 2); x.fill(); ecrire(x, a, 43, 301.5 + i * 18, 12, 500, c.S); ecrire(x, hh, w - 30, 301.5 + i * 18, 11, 500, c.Q, 'right'); }); }
+function heros(T, t, mode, s){ const {x, w, h} = T; x.clearRect(0, 0, w, h); sprite(x, w / 2, h / 2 + 6, 9, mode, t, s); }
+
+const H = [[toile('h1', 240, 170), 'eveil', false], [toile('h2', 240, 170), 'dort', false], [toile('h3', 240, 170), 'reveil', false], [toile('h4', 240, 170), 'eveil', true], [toile('h5', 240, 170), 'dort', true]];
+const D6 = [['d1','dort1',false],['d2','dort2',false],['d3','dort3',false],['d4','dort1',true],['d5','dort2',true],['d6','dort3',true]].map(([id, m, s]) => [toile(id, 240, 170), m, s]);
+const W = [[toile('c-p', 170, 170), petit, false], [toile('c-m', 344, 164), moyen, false], [toile('c-g', 344, 344), grand, false], [toile('s-p', 170, 170), petit, true], [toile('s-m', 344, 164), moyen, true], [toile('s-g', 344, 344), grand, true]];
+function boucle(ms){ const t = ms / 1000; H.forEach(([T, m, s]) => heros(T, t, m, s)); D6.forEach(([T, m, s]) => heros(T, t, m, s)); W.forEach(([T, f, s]) => f(T, t, s)); requestAnimationFrame(boucle); }
+requestAnimationFrame(boucle);
+</script></body></html>
