@@ -6,7 +6,13 @@ EyeOn est une petite app macOS gratuite et open source. Pendant que Claude Code 
 
 > EyeOn est un projet indépendant, compatible avec Claude Code. Il n'est ni affilié à Anthropic ni approuvé par Anthropic.
 
-*Captures d'écran à venir.*
+<p align="center">
+  <img src="docs/images/presentation-4.png" width="32%" alt="Le widget EyeOn en 3 tailles">
+  <img src="docs/images/presentation-5.png" width="32%" alt="Les anneaux de progression">
+  <img src="docs/images/presentation-11.png" width="32%" alt="La mascotte qui dort">
+</p>
+
+**[⬇︎ Télécharger EyeOn (.dmg)](https://github.com/FullFireZoo/EyeOn/releases/latest)**
 
 ## Ce que fait EyeOn
 
@@ -108,6 +114,7 @@ Menu bar panel (current request and action, progress bars, agents, daily summary
 1. Download `EyeOn-<version>.dmg` from **Releases**.
 2. Drag EyeOn into **Applications**.
 3. First launch: **right-click EyeOn → Open**, then confirm (the app is ad-hoc signed, not notarized).
+   If macOS still blocks it: System Settings → Privacy & Security → scroll down → **Open Anyway**.
 4. In the welcome assistant, click **Connect to Claude Code** (« Connecter à Claude Code »).
 5. Add the widget: right-click the desktop → Edit Widgets → “EyeOn”.
 
