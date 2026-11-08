@@ -1,0 +1,6 @@
+dist/
+build/
+*.dmg
+*.o
+.DS_Store
+*.tmp-*

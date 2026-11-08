@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<style>
+  :root { --txt: rgba(255,255,255,.92); --sec: rgba(235,235,245,.6); --ter: rgba(235,235,245,.42);
+          --bleu:#0A84FF; --vert:#30D158; --orange:#FF9F0A; --gris:#8E8E93; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background: transparent; color: var(--txt); overflow: hidden;
+    font: 13px/1.35 -apple-system, "SF Pro Text", system-ui; -webkit-font-smoothing: antialiased; cursor: default; }
+  #c { padding: 15px 18px 14px; }
+  .tete { display:flex; align-items:center; gap:10px; }
+  .pt { width:9px; height:9px; border-radius:50%; flex:none; }
+  .pulse { animation: p 1.6s ease-in-out infinite; } @keyframes p { 50% { opacity:.35 } }
+  .titre { font: 600 15px -apple-system, "SF Pro Display"; letter-spacing:-.2px; }
+  .chrono { margin-left:auto; color:var(--sec); font-size:11.5px; font-variant-numeric: tabular-nums; }
+  .dem { color:var(--sec); font-size:12px; margin-top:8px; }
+  .act { margin-top:6px; }
+  .sec { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--ter); margin:13px 0 6px; }
+  .t { margin-bottom:10px; }
+  .th { display:flex; justify-content:space-between; font-weight:500; margin-bottom:5px; gap:8px; }
+  .th span:last-child { color:var(--sec); font-variant-numeric: tabular-nums; white-space:nowrap; }
+  .rail { height:6px; border-radius:3px; background:rgba(120,120,128,.32); overflow:hidden; }
+  .b { height:100%; border-radius:3px; transition: width .5s cubic-bezier(.2,.8,.2,1), background-color .3s; }
+  .neuf { animation: entree .22s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes entree { from { opacity:0; transform: translateY(-4px); } }
+  .bulle { animation: bulle .28s cubic-bezier(.2,1.2,.3,1) both; }
+  @keyframes bulle { from { opacity:0; transform: scale(.94) translateY(-6px); } }
+  .pt, .titre, .eveil, .reg button span { transition: background-color .3s, color .3s, box-shadow .3s, opacity .3s; }
+  .reg button { transition: background-color .12s; }
+  .chev { transition: background-color .12s, transform .2s; } .chev:active { transform: scale(.9); }
+  .det { color:var(--sec); font-size:12px; margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ag { display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:5px; }
+  .ag span:nth-child(2) { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ag span:last-child { color:var(--ter); font-variant-numeric: tabular-nums; }
+  .reg { margin-top:12px; padding-top:10px; border-top:0.5px solid rgba(255,255,255,.12); display:flex; flex-direction:column; gap:2px; }
+  .reg button { all:unset; display:flex; justify-content:space-between; align-items:center; padding:5px 8px; margin:0 -8px; border-radius:6px; font-size:13px; }
+  .reg button:hover { background: var(--bleu); color:#fff; }
+  .reg button:hover span { color:#fff; }
+  .reg span { color:var(--sec); font-size:12px; }
+  .fini { background: rgba(48,209,88,.16); border:0.5px solid rgba(48,209,88,.45); border-radius:12px; padding:9px 11px; margin-bottom:10px; font-size:13px; }
+  .fini b { color: var(--vert); display:block; font-size:12px; margin-bottom:2px; }
+  .bulle { display:flex; align-items:center; gap:10px; }
+  .bulle .ok { width:26px; height:26px; border-radius:50%; background:var(--vert); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex:none; }
+  .bulle .txt { flex:1; min-width:0; } .bulle b { display:block; font-size:13px; font-weight:600; }
+  .bulle span { display:block; color:var(--sec); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chev { all:unset; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--sec); background:rgba(120,120,128,.25); flex:none; line-height:0; }
+  .chev svg { display:block; }
+  .chev:hover { background:var(--bleu); color:#fff; }
+  body.popover .bulle { margin:-2px 0 -2px; }
+  .eveil { margin-left:6px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .eveil.on { background: #FFD60A; box-shadow:0 0 8px rgba(255,214,10,.6); } .eveil.off { background: rgba(120,120,128,.3); color: var(--sec); }
+  .jour { display:flex; gap:6px; margin-top:12px; }
+  .jour div { flex:1; background: rgba(120,120,128,.18); border-radius:10px; padding:7px 9px; }
+  .jour b { display:block; font: 600 15px -apple-system, "SF Pro Display"; font-variant-numeric: tabular-nums; }
+  .jour span { color:var(--sec); font-size:10.5px; }
+  .actions { display:flex; gap:6px; margin-top:10px; }
+  .actions button { all:unset; flex:1; text-align:center; padding:7px 4px; border-radius:9px; background: rgba(120,120,128,.22); font-size:12px; transition: background-color .12s, transform .15s; }
+  .actions button:hover { background: var(--bleu); color:#fff; } .actions button:active { transform: scale(.96); }
+  .actions button[disabled] { opacity:.35; pointer-events:none; }
+  .plier { all:unset; display:flex; align-items:center; justify-content:space-between; width:100%; margin-top:12px; padding:7px 8px; margin-left:-8px; margin-right:-8px; border-radius:8px;
+    color:var(--sec); font-size:12px; font-weight:600; border-top:0.5px solid rgba(255,255,255,.12); transition: background-color .12s; }
+  .plier:hover { background: rgba(120,120,128,.2); }
+  .plier svg { transition: transform .25s cubic-bezier(.2,.8,.2,1); } .plier svg.ouvert { transform: rotate(180deg); }
+  .reg { margin-top:2px; padding-top:4px; border-top:none; }
+  .pli { display:grid; grid-template-rows: 0fr; transition: grid-template-rows .26s cubic-bezier(.2,.8,.2,1), opacity .2s; opacity:0; }
+  .pli.ouvert { grid-template-rows: 1fr; opacity:1; }
+  .pli > div { overflow:hidden; min-height:0; }
+  .veille { display:flex; align-items:center; gap:10px; }
+  .lune { display:flex; align-items:flex-end; }
+  /* Visuel de veille PROVISOIRE (étoile atténuée + anneau vide qui respire) : tout est dans visuelVeille() */
+  .veille-visuel { width:48px; height:48px; display:block; }
+  .veille-visuel .respire { transform-origin: 24px 24px; animation: respire 4s ease-in-out infinite; }
+  @keyframes respire { 0%,100% { transform: scale(.94); opacity:.55; } 50% { transform: scale(1.04); opacity:1; } }
+  .raccourci { color:var(--ter); font-size:10.5px; text-align:center; margin-top:8px; }
+  body.popover #c { padding: 14px 16px 10px; }
+  .h { color:var(--sec); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+</style></head>
+<body><div id="c"><div class="tete"><div class="pt" style="background:var(--gris)"></div><div class="titre">Claude · démarrage…</div></div></div>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const duree = s => { s = Math.max(0, Math.round(s)); if (s < 60) return s + ' s'; if (s < 3600) return Math.floor(s/60) + ' min';
+  return Math.floor(s/3600) + ' h ' + String(Math.floor(s%3600/60)).padStart(2,'0'); };
+const MODE = new URLSearchParams(location.search).get('mode') || 'fenetre';
+document.body.className = MODE;
+const act = a => window.webkit?.messageHandlers?.action?.postMessage(a);
+// Mise à jour « en douceur » : on ne remplace que ce qui a changé (les barres glissent, rien ne clignote).
+function morph(ancien, neuf) {
+  const a = [...ancien.childNodes], n = [...neuf.childNodes];
+  n.forEach((nn, i) => {
+    const aa = a[i];
+    if (!aa) { if (nn.nodeType === 1) nn.classList.add('neuf'); ancien.appendChild(nn); return; }
+    if (aa.nodeType !== nn.nodeType || aa.nodeName !== nn.nodeName || (aa.nodeType === 1 && aa.className.replace(' neuf','') !== nn.className && (aa.classList.contains('bulle') || nn.classList.contains('bulle')))) {
+      if (nn.nodeType === 1) nn.classList.add('neuf'); ancien.replaceChild(nn, aa); return;
+    }
+    if (aa.nodeType === 3) { if (aa.nodeValue !== nn.nodeValue) aa.nodeValue = nn.nodeValue; return; }
+    if (aa.nodeType !== 1) return;
+    for (const at of [...aa.attributes]) if (!nn.hasAttribute(at.name) && at.name !== 'class') aa.removeAttribute(at.name);
+    for (const at of [...nn.attributes]) {
+      if (at.name === 'class') { const c = at.value + (aa.classList.contains('neuf') ? ' neuf' : ''); if (aa.className !== c) aa.className = c; }
+      else if (aa.getAttribute(at.name) !== at.value) aa.setAttribute(at.name, at.value);
+    }
+    if (!nn.hasAttribute('class') && aa.hasAttribute('class') && aa.className !== 'neuf') aa.removeAttribute('class');
+    morph(aa, nn);
+  });
+  for (let i = a.length - 1; i >= n.length; i--) ancien.removeChild(a[i]);
+}
+let dernierHTML = '', ouvertLocal = null;
+function hauteurCible() {
+  const c = document.getElementById('c'), p = c.querySelector('.pli');
+  if (!p) return c.offsetHeight;
+  return c.offsetHeight - p.offsetHeight + (ouvertLocal ? p.firstElementChild.scrollHeight : 0);
+}
+function plier() {
+  ouvertLocal = !ouvertLocal;
+  const p = document.querySelector('.pli'), sv = document.querySelector('.plier svg');
+  if (p) p.classList.toggle('ouvert', ouvertLocal);
+  if (sv) sv.classList.toggle('ouvert', ouvertLocal);
+  window.webkit?.messageHandlers?.hauteur?.postMessage(hauteurCible());
+  act(ouvertLocal ? 'reglages-ouvert' : 'reglages-ferme');
+  dernierHTML = '';
+}
+function afficher(html) {
+  if (html === dernierHTML) return; dernierHTML = html;
+  const c = document.getElementById('c'), t = document.createElement('div'); t.innerHTML = html;
+  morph(c, t);
+  window.webkit?.messageHandlers?.hauteur?.postMessage(hauteurCible());
+}
+// ——— Visuel de veille PROVISOIRE : à remplacer ici seulement (le widget a son équivalent : VisuelVeille) ———
+function visuelVeille() {
+  return `<svg class="veille-visuel" viewBox="0 0 48 48" aria-hidden="true"><g class="respire">
+    <circle cx="24" cy="24" r="19" fill="none" stroke="rgba(235,235,245,.22)" stroke-width="4"/>
+    <path d="M24 13.5 C25 19.6 28.4 23 34.5 24 C28.4 25 25 28.4 24 34.5 C23 28.4 19.6 25 13.5 24 C19.6 23 23 19.6 24 13.5 Z" fill="#E8663D" opacity=".55"/></g></svg>`;
+}
+const COINS = ['en haut à droite','en haut à gauche','en bas à droite','en bas à gauche'];
+function maj(d, r) {
+  const now = d.now, S = Object.values(d.sessions||{}).sort((a,b)=>b.maj-a.maj), s = S[0];
+  const ag = Object.values(d.agents||{}).sort((a,b)=>a.debut-b.debut), actifs = ag.filter(a=>a.statut==='en cours');
+  const trav = s && s.statut==='travaille' && now - s.maj < 300;
+  const veille = !trav && !d.taches.some(t => !t.fin) && !actifs.length && (!s || now - s.maj > 900);
+  const etat = !s ? 'Au repos' : trav ? 'Travaille' : s.statut==='attend' ? 'Attend ta réponse' : 'Au repos';
+  const col = trav ? 'var(--bleu)' : (s && s.statut==='attend') ? 'var(--vert)' : 'var(--gris)';
+  let h = veille ? `<div class="veille"><div class="lune">${visuelVeille()}</div><div style="flex:1"><div class="titre">Claude en veille </div>
+      <div class="dem" style="margin-top:2px">${s ? 'Dernière activité il y a ' + duree(now - s.maj) : 'Aucune session Claude ouverte'}</div></div>
+      ${d.eveil ? `<div class="eveil on" title="Le Mac reste éveillé">💡</div>` : ''}</div>` : `<div class="tete"><div class="pt ${trav?'pulse':''}" style="background:${col};box-shadow:0 0 8px ${col}"></div>
+    <div class="titre">Claude · ${etat}</div><div class="chrono">${trav ? duree(now-(s.depuis||s.maj)) : ''}</div>
+    ${d.eveil ? `<div class="eveil on" title="Le Mac reste éveillé">💡</div>` : ''}</div>`;
+  if (veille && MODE !== 'popover') { afficher(h); return; }
+  if (MODE === 'popover' && r && r.compact && r.fini) {
+    afficher(`<div class="bulle"><div class="ok">✓</div><div class="txt"><b>${esc(r.titreBulle || 'Tâche terminée')}</b><span>${esc(r.fini.replace(/ : terminé$/, ''))}</span></div>
+      <button class="chev" onclick="act('deplier')" title="Voir plus"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>`);
+    return;
+  }
+  if (MODE === 'popover' && r && r.fini) h = `<div class="fini"><b>✓ Terminé</b>${esc(r.fini)}</div>` + h;
+  if (s && s.demande && !veille) h += `<div class="dem">« ${esc(s.demande)} »</div>`;
+  if (trav) h += `<div class="act">${esc(s.action)}</div>`;
+  if (d.taches.length) h += `<div class="sec">Progression</div>`;
+  for (const t of d.taches) {
+    const p = t.total ? Math.min(100, 100*t.fait/t.total) : 0, fini = !!t.fin, ec = now - t.debut;
+    const reste = !fini && t.fait > 0 && t.total ? ec/t.fait*(t.total-t.fait) : null;
+    const c = fini ? 'var(--vert)' : t.bloque ? 'var(--orange)' : 'var(--bleu)';
+    const det = fini ? 'Terminé en ' + duree(t.fin - t.debut) : t.bloque ? 'Pas de nouvelles depuis 10 min'
+      : (reste != null ? 'Encore ~' + duree(reste) : '') + (t.detail ? ' · ' + t.detail : '');
+    h += `<div class="t"><div class="th"><span>${fini?'✓ ':''}${esc(t.titre)}</span><span>${t.total?t.fait+'/'+t.total+' · ':''}${Math.round(p)} %</span></div>
+      <div class="rail"><div class="b" style="width:${p}%;background:${c}"></div></div><div class="det">${esc(det)}</div></div>`;
+  }
+  if (ag.length) h += `<div class="sec">Agents${actifs.length ? ' · ' + actifs.length + ' en cours' : ''}</div>`;
+  for (const a of ag.slice(-5)) { const enc = a.statut==='en cours', c = enc ? 'var(--bleu)' : 'var(--vert)';
+    h += `<div class="ag"><div class="pt ${enc?'pulse':''}" style="background:${c}"></div><span>${esc(a.desc)}</span><span>${enc ? duree(now-a.debut) : '✓'}</span></div>`; }
+  const hist = s && s.historique ? s.historique.slice(0,-1).reverse().slice(0,3) : [];
+  if (hist.length) { h += `<div class="sec">Récemment</div>`; for (const x of hist) h += `<div class="h">✓ ${esc(x.a)}</div>`; }
+  if (MODE === 'popover' && r) {
+    const j = d.journee || {}, hh = Math.floor((j.secondes||0)/3600), mm = Math.floor((j.secondes||0)%3600/60);
+    h += `<div class="sec">Aujourd'hui</div><div class="jour" style="margin-top:0">
+      <div><b>${hh ? hh + ' h ' + String(mm).padStart(2,'0') : mm + ' min'}</b><span>de travail</span></div>
+      <div><b>${j.demandes||0}</b><span>demande${(j.demandes||0)>1?'s':''}</span></div>
+      <div><b>${j.nb_taches||0}</b><span>tâche${(j.nb_taches||0)>1?'s':''} longue${(j.nb_taches||0)>1?'s':''}</span></div></div>`;
+    const m = d.memoire;
+    if (m) {
+      const p = Math.min(100, m.pourcent), cm = p >= 85 ? 'var(--orange)' : p >= 60 ? '#FFD60A' : 'var(--vert)';
+      const k = n => n >= 1e6 ? (n/1e6).toFixed(1).replace('.0','') + ' M' : Math.round(n/1000) + ' k';
+      const dc = m.derniere_compression ? new Date(m.derniere_compression*1000).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : null;
+      h += `<div class="sec">Mémoire de Claude</div>
+        <div class="th"><span>${Math.round(p)} % remplie</span><span>${k(m.utilise)} / ${k(m.fenetre)}</span></div>
+        <div class="rail"><div class="b" style="width:${p}%;background:${cm}"></div></div>
+        <div class="det">${p >= 85 ? 'Bientôt pleine : je vais résumer la conversation' : 'Compression automatique quand elle est presque pleine'}${m.compressions_jour ? ' · ' + m.compressions_jour + ' compression' + (m.compressions_jour>1?'s':'') + ' aujourd’hui (dernière ' + dc + ')' : ''}</div>`;
+    }
+    const nomF = d.dernier_fichier ? d.dernier_fichier.split('/').pop() : '';
+    h += `<div class="actions">
+      <button onclick="act('terminal')">⌨︎ Terminal</button>
+      <button onclick="act('fichier')" ${nomF?'':'disabled'} title="${esc(nomF)}">📄 Fichier</button>
+      <button onclick="act('dossier')" ${nomF?'':'disabled'}>📁 Dossier</button></div>`;
+    if (ouvertLocal === null) ouvertLocal = !!r.reglagesOuverts;
+    h += `<button class="plier" onclick="plier()"><span>Réglages</span><svg class="${ouvertLocal ? 'ouvert' : ''}" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+    h += `<div class="pli ${ouvertLocal ? 'ouvert' : ''}"><div><div class="reg">
+      <button onclick="act('dnd')">🌙 Ne pas déranger <span>${d.concentration && d.concentration.actif ? 'Mac : ' + esc(d.concentration.nom || 'Concentration') + ' ✓' : r.dnd ? 'Activé ✓' : 'Désactivé'}</span></button>
+      <button onclick="act('rappels')">⏰ Rappel « Claude t'attend » <span>${r.rappels ? 'Activé ✓' : 'Désactivé'}</span></button>
+      ${r.iphone ? `<button onclick="act('iphone')">📱 Alerte iPhone si absent <span>${r.iphoneActif ? 'Activé ✓' : 'Désactivé'}</span></button>` : ''}
+      <button onclick="act('eveil')">💡 Garder le Mac éveillé <span>${d.eveil ? 'Activé ✓' : 'Désactivé'}</span></button>
+      <button onclick="act('notifs')">Prévenir quand une tâche est finie <span>${r.notifs ? 'Activé ✓' : 'Désactivé'}</span></button>
+      <button onclick="act('flottante')">Fenêtre flottante <span>${r.flottante ? 'Activée ✓' : 'Désactivée'}</span></button>
+      ${r.flottante ? `<button onclick="act('coin')">Position de la fenêtre <span>${COINS[r.coin]}</span></button>` : ''}
+      <button onclick="act('widget')">Actualiser le widget du Bureau <span>↻</span></button>
+      <button onclick="act('preferences')">Réglages d’EyeOn… <span>⚙︎</span></button>
+      <button onclick="act('quitter')">Quitter EyeOn <span>⌘Q</span></button></div></div></div>`;
+    h += `<div class="raccourci">Raccourci : ⌥ Espace pour ouvrir ce panneau</div>`;
+  }
+  afficher(h);
+}
+</script></body></html>
